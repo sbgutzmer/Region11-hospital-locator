@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Region 11 EMS Policy Locator</title>
+    <style>
+        :root { --primary: #d32f2f; --bg: #f8f9fa; --card: #ffffff; --text: #212121; }
+        body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 15px; margin: 0; }
+        h2 { font-size: 1.4rem; color: var(--primary); text-align: center; margin-bottom: 5px; }
+        .update-tag { font-size: 0.7rem; text-align: center; color: #666; margin-bottom: 15px; }
+        .summary-list { display: flex; flex-direction: column; gap: 10px; }
+        .facility-card { background: var(--card); border-radius: 8px; padding: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; border-left: 4px solid var(--primary); }
+        .info { flex: 1; }
+        .cat-label { font-size: 0.75rem; font-weight: bold; text-transform: uppercase; color: #757575; }
+        .hosp-name { font-size: 1rem; font-weight: 700; display: block; margin: 2px 0; }
+        .distance { font-size: 0.85rem; color: var(--primary); font-weight: 500; }
+        .nav-btn { background: #1a73e8; color: white; text-decoration: none; padding: 8px 12px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; white-space: nowrap; margin-left: 10px; }
+        #loading { text-align: center; padding: 40px; font-style: italic; }
+    </style>
+</head>
+<body>
+
+    <h2>Region 11 EMS Summary</h2>
+    <div class="update-tag">Policy Reflective of: Dec 2025 Update</div>
+    
+    <div id="loading">📍 Determining Closest Protocol Facilities...</div>
+    <div id="app" class="summary-list" style="display:none;"></div>
+
+<script>
+// Region 11 Comprehensive Database (Coordinates + 2025 Designations)
+const hospitals = [
+    { name: "Advocate Christ", lat: 41.7196, lng: -87.7314, l1:1, l1p:1, stemi:1, csc:1, edap:1, pccc:1, peri3:1, burn:1 },
+    { name: "Advocate IL Masonic", lat: 41.9368, lng: -87.6513, l1:1, stemi:1, tsc:1, edap:1, peri3:1 },
+    { name: "Advocate Lutheran Gen", lat: 42.0414, lng: -87.8458, l1:1, stemi:1, csc:1, pccc:1, peri3:1 },
+    { name: "Advocate Trinity", lat: 41.7258, lng: -87.5683, stemi:1, psc:1, peri2:1 },
+    { name: "Lurie Children’s", lat: 41.8967, lng: -87.6219, l1p:1, pccc:1 },
+    { name: "Ascension St. Joseph", lat: 41.9365, lng: -87.6401, stemi:1, psc:1, edap:1, peri3:1 },
+    { name: "Community First", lat: 41.9465, lng: -87.7656, stemi:1, psc:1 }, // Removed EDAP 2024
+    { name: "Hines VA", lat: 41.8540, lng: -87.8384, partic:1 },
+    { name: "Endeavor Swedish", lat: 41.9754, lng: -87.6998, stemi:1, psc:1, peri2:1 },
+    { name: "Holy Cross", lat: 41.7702, lng: -87.6912, psc:1 },
+    { name: "Humboldt Park Health", lat: 41.9009, lng: -87.7011, stemi:1, psc:1, peri2:1 },
+    { name: "Insight Hospital", lat: 41.8471, lng: -87.6231, psc:1 },
+    { name: "Jackson Park", lat: 41.7578, lng: -87.5855, partic:1 },
+    { name: "Jesse Brown VA", lat: 41.8722, lng: -87.6763, partic:1 },
+    { name: "John H. Stroger", lat: 41.8721, lng: -87.6727, l1:1, l1p:1, stemi:1, psc:1, edap:1, peri3:1, burn:1 },
+    { name: "Loretto Hospital", lat: 41.8725, lng: -87.7645, partic:1 },
+    { name: "Loyola University", lat: 41.8586, lng: -87.8353, l1:1, stemi:1, csc:1, peri3:1, burn:1 },
+    { name: "MacNeal", lat: 41.8322, lng: -87.7944, stemi:1, psc:1, peri2:1 },
+    { name: "Mount Sinai", lat: 41.8596, lng: -87.6923, l1:1, edap:1, peri3:1 },
+    { name: "Northwestern Mem", lat: 41.8944, lng: -87.6214, l1:1, stemi:1, csc:1, peri3:1 },
+    { name: "OSF Little Co of Mary", lat: 41.7208, lng: -87.6917, stemi:1, psc:1, edap:1, peri2:1 },
+    { name: "Resurrection", lat: 41.9794, lng: -87.8181, stemi:1, csc:1, peri2:1 },
+    { name: "St. Francis (Evanston)", lat: 42.0225, lng: -87.6833, l1:1, stemi:1, psc:1, edap:1 },
+    { name: "St. Mary of Nazareth", lat: 41.9034, lng: -87.6834, stemi:1, psc:1, edap:1, peri2:1 },
+    { name: "Roseland Community", lat: 41.6915, -87.6251, peri2:1 },
+    { name: "Rush University", lat: 41.8739, lng: -87.6698, stemi:1, csc:1, pccc:1, peri3:1 },
+    { name: "Saint Anthony", lat: 41.8552, lng: -87.6978, psc:1, edap:1, peri2:1 },
+    { name: "St. Bernard", lat: 41.7787, lng: -87.6329, partic:1 },
+    { name: "UChicago Medicine", lat: 41.7891, lng: -87.6048, l1:1, stemi:1, csc:1, peri3:1, burn:1 },
+    { name: "UI Health", lat: 41.8711, lng: -87.6719, stemi:1, csc:1, pccc:1, peri3:1 },
+    { name: "West Suburban", lat: 41.8887, lng: -87.7749, stemi:1, psc:1, edap:1 } // OB Ended Oct 2025
+];
+
+function getDistance(lat1, lon1, lat2, lon2) {
+    const p = 0.017453292519943295;    // Math.PI / 180
+    const c = Math.cos;
+    const a = 0.5 - c((lat2 - lat1) * p)/2 + 
+            c(lat1 * p) * c(lat2 * p) * (1 - c((lon2 - lon1) * p))/2;
+    return 12742 * Math.asin(Math.sqrt(a)) * 0.621371; // Miles
+}
+
+function renderClosest() {
+    navigator.geolocation.getCurrentPosition(pos => {
+        const uLat = pos.coords.latitude;
+        const uLng = pos.coords.longitude;
+
+        const categories = [
+            { label: "Closest Participating", keys: ['l1', 'psc', 'stemi', 'partic', 'edap'] },
+            { label: "Level 1 Trauma", keys: ['l1'] },
+            { label: "Pediatric Trauma (L1)", keys: ['l1p'] },
+            { label: "STEMI Center", keys: ['stemi'] },
+            { label: "Comprehensive Stroke/Thrombectomy", keys: ['csc', 'tsc'] },
+            { label: "Primary Stroke Center", keys: ['psc'] },
+            { label: "EDAP (Pediatric)", keys: ['edap'] },
+            { label: "PCCC (Pediatric Critical Care)", keys: ['pccc'] },
+            { label: "Perinatal Level 3 (High Risk OB)", keys: ['peri3'] },
+            { label: "Burn Center", keys: ['burn'] }
+        ];
+
+        const container = document.getElementById('app');
+        container.innerHTML = '';
+
+        categories.forEach(cat => {
+            let closest = null;
+            let minD = Infinity;
+
+            hospitals.forEach(h => {
+                const hasTag = cat.keys.some(k => h[k]);
+                if (hasTag) {
+                    const d = getDistance(uLat, uLng, h.lat, h.lng);
+                    if (d < minD) { minD = d; closest = h; }
+                }
+            });
+
+            if (closest) {
+                const mapUrl = `https://www.google.com/maps/dir/?api=1&destination=${closest.lat},${closest.lng}`;
+                container.innerHTML += `
+                    <div class="facility-card">
+                        <div class="info">
+                            <span class="cat-label">${cat.label}</span>
+                            <span class="hosp-name">${closest.name}</span>
+                            <span class="distance">${minD.toFixed(1)} miles away</span>
+                        </div>
+                        <a href="${mapUrl}" class="nav-btn" target="_blank">NAV</a>
+                    </div>`;
+            }
+        });
+
+        document.getElementById('loading').style.display = 'none';
+        container.style.display = 'flex';
+    }, err => {
+        document.getElementById('loading').innerText = "Location access required for EMS distance calculations.";
+    });
+}
+
+window.onload = renderClosest;
+</script>
+</body>
+</html>
